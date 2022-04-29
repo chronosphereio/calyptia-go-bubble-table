@@ -42,7 +42,7 @@ go-bubble-table
 # vendor/
 
 # Go workspace file
-go.work
+# go.work
 
 ### Go Patch ###
 /vendor/
