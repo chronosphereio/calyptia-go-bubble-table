@@ -3,6 +3,7 @@ package table
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -11,6 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/juju/ansiterm/tabwriter"
+	"github.com/muesli/reflow/ansi"
 )
 
 // Row renderer.
@@ -24,7 +26,7 @@ type Row interface {
 
 // SimpleRow is a set of cells that can be rendered into a table.
 // It supports row highlight if selected.
-type SimpleRow []interface{}
+type SimpleRow []any
 
 // Render a simple row.
 func (row SimpleRow) Render(w io.Writer, model Model, index int) {
@@ -62,14 +64,16 @@ func maxInt(a, b int) int {
 
 // Model of a table component.
 type Model struct {
-	KeyMap    KeyMap
-	Styles    Styles
-	cols      []string
-	rows      []Row
-	header    string
-	viewPort  viewport.Model
-	tabWriter *tabwriter.Writer
-	cursor    int
+	KeyMap       KeyMap
+	Styles       Styles
+	cols         []string
+	rows         []Row
+	header       string
+	viewPort     viewport.Model
+	tabWriter    *tabwriter.Writer
+	cursor       int
+	offset       uint
+	contentWidth int
 }
 
 // KeyMap holds the key bindings for the table.
@@ -80,6 +84,8 @@ type KeyMap struct {
 	PageUp   key.Binding
 	Down     key.Binding
 	Up       key.Binding
+	Right    key.Binding
+	Left     key.Binding
 }
 
 // DefaultKeyMap used by the `New` constructor.
@@ -108,6 +114,14 @@ func DefaultKeyMap() KeyMap {
 		Up: key.NewBinding(
 			key.WithKeys("up"),
 			key.WithHelp("↑", "up"),
+		),
+		Right: key.NewBinding(
+			key.WithKeys("right"),
+			key.WithHelp("→", "right"),
+		),
+		Left: key.NewBinding(
+			key.WithKeys("left"),
+			key.WithHelp("←", "left"),
 		),
 	}
 }
@@ -170,8 +184,15 @@ func (m *Model) updateView() {
 
 	m.tabWriter.Flush()
 
+	content := b.String()
+	m.contentWidth = lipgloss.Width(content)
+
+	if m.offset > 0 {
+		content = trucateOffset(content, m.offset)
+	}
+
 	// split table at first line-break to take header and rows apart.
-	parts := strings.SplitN(b.String(), "\n", 2)
+	parts := strings.SplitN(content, "\n", 2)
 	if len(parts) != 0 {
 		m.header = parts[0]
 		if len(parts) == 2 {
@@ -281,6 +302,24 @@ func (m *Model) GoBottom() {
 	m.viewPort.GotoBottom()
 }
 
+func (m *Model) GoRight() {
+	if uint(m.viewPort.Width)+m.offset >= uint(m.contentWidth) {
+		return
+	}
+
+	m.offset++
+	m.updateView()
+}
+
+func (m *Model) GoLeft() {
+	if m.offset == 0 {
+		return
+	}
+
+	m.offset--
+	m.updateView()
+}
+
 // Update tea.Model implementor.
 // It handles the key events.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -299,6 +338,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.GoTop()
 		case key.Matches(msg, m.KeyMap.End):
 			m.GoBottom()
+		case key.Matches(msg, m.KeyMap.Right):
+			m.GoRight()
+		case key.Matches(msg, m.KeyMap.Left):
+			m.GoLeft()
 		}
 	}
 
@@ -314,4 +357,51 @@ func (m Model) View() string {
 			m.viewPort.View(),
 		),
 	)
+}
+
+var reANSISeq = regexp.MustCompile("^[\u001B\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[a-zA-Z\\d]*)*)?\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PRZcf-ntqry=><~]))")
+
+// trucateOffset trucates the beginning of the given block of text.
+// It handles more than 1 cell wide charaters
+// and preserves ANSI escape sequences.
+func trucateOffset(s string, offset uint) string {
+	if offset == 0 {
+		return s
+	}
+
+	var buf strings.Builder
+	lines := strings.Split(s, "\n")
+	last := len(lines) - 1
+	for i, s := range lines {
+		ansiSeq := reANSISeq.FindString(s)
+		if ansiSeq != "" {
+			s = strings.Replace(s, ansiSeq, "", 1)
+		}
+
+		var cutset, spaces, chars uint
+		for _, r := range s {
+			w := ansi.PrintableRuneWidth(string(r))
+			if w < 0 {
+				continue
+			}
+
+			cutset += uint(w)
+			chars++
+
+			if cutset >= offset {
+				spaces = cutset - offset
+				break
+			}
+		}
+
+		line := strings.Repeat(" ", int(spaces)) + string([]rune(s)[chars:])
+		if ansiSeq != "" {
+			line = ansiSeq + line
+		}
+		buf.WriteString(line)
+		if i != last {
+			buf.WriteRune('\n')
+		}
+	}
+	return buf.String()
 }

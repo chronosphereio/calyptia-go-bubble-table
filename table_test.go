@@ -12,7 +12,7 @@ import (
 )
 
 // prefixedRow renders the selected row with a `> ` prefix and no styles.
-type prefixedRow []interface{}
+type prefixedRow []any
 
 func (row prefixedRow) Render(w io.Writer, model Model, index int) {
 	cells := make([]string, len(row))
@@ -322,9 +322,9 @@ func TestModel_Update(t *testing.T) {
 	}
 }
 
-func wantEq(t *testing.T, want, got interface{}) {
+func wantEq[T any](t *testing.T, want, got T) {
 	t.Helper()
 	if !reflect.DeepEqual(want, got) {
-		t.Errorf("want %#v, got %#v", want, got)
+		t.Fatalf("want %v, got %v", want, got)
 	}
 }
