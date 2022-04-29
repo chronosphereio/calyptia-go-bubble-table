@@ -32,18 +32,10 @@ func initialModel() model {
 	top, right, bottom, left := styleDoc.GetPadding()
 	w = w - left - right
 	h = h - top - bottom
-	tbl := table.New([]string{"ID", "NAME", "AGE", "CITY", "ID", "NAME", "AGE", "CITY", "ID", "NAME", "AGE", "CITY"}, w, h)
+	tbl := table.New([]string{"ID", "NAME", "AGE", "CITY"}, w, h)
 	rows := make([]table.Row, 100)
 	for i := 0; i < 100; i++ {
 		rows[i] = table.SimpleRow{
-			i,
-			gofakeit.Name(),
-			gofakeit.Number(0, 122),
-			gofakeit.City(),
-			i,
-			gofakeit.Name(),
-			gofakeit.Number(0, 122),
-			gofakeit.City(),
 			i,
 			gofakeit.Name(),
 			gofakeit.Number(0, 122),
