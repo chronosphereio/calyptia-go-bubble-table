@@ -364,6 +364,10 @@ var reANSISeq = regexp.MustCompile("^[\u001B\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\
 // trucateOffset trucates the beginning of the given block of text.
 // It handles more than 1 cell wide charaters
 // and preserves ANSI escape sequences.
+//
+// TODO: find a better way to keep ANSI escape sequences
+// than having to use regexp to remove them, trim the line
+// and restore them at the end.
 func trucateOffset(s string, offset uint) string {
 	if offset == 0 {
 		return s
