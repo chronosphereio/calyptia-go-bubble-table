@@ -34,7 +34,7 @@ func (row SimpleRow) Render(w io.Writer, model Model, rowIndex int) {
 	for i, v := range row {
 		cells[i] = model.Styles.Cell(model, rowIndex, i).Render(fmt.Sprintf("%v", v))
 	}
-	s := strings.Join(cells, "\t")
+	s := strings.Join(cells, "\t"+model.Styles.ColumnSeparator)
 	fmt.Fprintln(w, s)
 }
 
@@ -125,14 +125,16 @@ func DefaultKeyMap() KeyMap {
 
 // Styles holds the styling for the table.
 type Styles struct {
-	Title lipgloss.Style
-	Cell  func(model Model, rowIndex int, colIndex int) lipgloss.Style
+	Title           lipgloss.Style
+	Cell            func(model Model, rowIndex int, colIndex int) lipgloss.Style
+	ColumnSeparator string
 }
 
 var (
 	defaultSelectionStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("170")).Bold(true)
 	defaultRowStyle            = lipgloss.NewStyle().Bold(false)
 	defaultHighlightedColStyle = defaultRowStyle.Copy().Italic(true).Foreground(lipgloss.Color("#EDFB78"))
+	defaultColSeparator        = lipgloss.NormalBorder().Left + " "
 )
 
 // DefaultStyles used by the `New` constructor.
@@ -148,6 +150,7 @@ func DefaultStyles() Styles {
 			}
 			return defaultRowStyle
 		},
+		ColumnSeparator: defaultColSeparator,
 	}
 }
 
@@ -186,7 +189,7 @@ func (m *Model) updateView() {
 	m.tabWriter.Init(&b, 0, 4, 1, ' ', 0)
 
 	// rendering the header.
-	fmt.Fprintln(m.tabWriter, m.Styles.Title.Render(strings.Join(m.cols, "\t")))
+	fmt.Fprintln(m.tabWriter, m.Styles.Title.Render(strings.Join(m.cols, "\t"+m.Styles.ColumnSeparator)))
 
 	// rendering the rows.
 	for i, row := range m.rows {
