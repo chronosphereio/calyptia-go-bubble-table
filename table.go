@@ -29,15 +29,12 @@ type Row interface {
 type SimpleRow []any
 
 // Render a simple row.
-func (row SimpleRow) Render(w io.Writer, model Model, index int) {
+func (row SimpleRow) Render(w io.Writer, model Model, rowIndex int) {
 	cells := make([]string, len(row))
 	for i, v := range row {
-		cells[i] = fmt.Sprintf("%v", v)
+		cells[i] = model.Styles.Cell(model, rowIndex, i).Render(fmt.Sprintf("%v", v))
 	}
 	s := strings.Join(cells, "\t")
-	if index == model.Cursor() {
-		s = model.Styles.SelectedRow.Render(s)
-	}
 	fmt.Fprintln(w, s)
 }
 
@@ -128,15 +125,29 @@ func DefaultKeyMap() KeyMap {
 
 // Styles holds the styling for the table.
 type Styles struct {
-	Title       lipgloss.Style
-	SelectedRow lipgloss.Style
+	Title lipgloss.Style
+	Cell  func(model Model, rowIndex int, colIndex int) lipgloss.Style
 }
+
+var (
+	defaultSelectionStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("170")).Bold(true)
+	defaultRowStyle            = lipgloss.NewStyle().Bold(false)
+	defaultHighlightedColStyle = defaultRowStyle.Copy().Italic(true).Foreground(lipgloss.Color("#EDFB78"))
+)
 
 // DefaultStyles used by the `New` constructor.
 func DefaultStyles() Styles {
 	return Styles{
-		Title:       lipgloss.NewStyle().Bold(true),
-		SelectedRow: lipgloss.NewStyle().Foreground(lipgloss.Color("170")),
+		Title: lipgloss.NewStyle().Bold(true),
+		Cell: func(model Model, rowIndex int, colIndex int) lipgloss.Style {
+			if model.Cursor() == rowIndex {
+				return defaultSelectionStyle
+			}
+			if colIndex == 1 {
+				return defaultHighlightedColStyle
+			}
+			return defaultRowStyle
+		},
 	}
 }
 
