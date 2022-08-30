@@ -5,10 +5,11 @@ import (
 	"os"
 
 	"github.com/brianvoe/gofakeit/v6"
-	table "github.com/calyptia/go-bubble-table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/term"
+
+	table "github.com/calyptia/go-bubble-table"
 )
 
 func main() {
